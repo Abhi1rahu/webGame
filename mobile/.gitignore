@@ -1,0 +1,46 @@
+# Flutter build outputs
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# pubspec.lock
+pubspec.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+.gradle/
+local.properties
+
+# Generated files
+*.g.dart
+*.config.dart
+
+# Packages
+*.pub-cache/
+.packages
+
+# Web specific
+web/flutter_service_worker.js
+
+# Platform-specific build files
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Pods/
+ios/Podfile.lock
+
+android/local.properties
+android/gradle.properties
+android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# OS specific
+Thumbs.db
