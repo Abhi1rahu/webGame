@@ -1,0 +1,183 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for storing user account information
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  profileImage  String?
+  bio           String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  wallet        Wallet?
+  transactions  Transaction[]
+  matches       Match[]
+  matchPlayers  MatchPlayerCurrent[]
+
+  @@index([email])
+  @@index([username])
+}
+
+// Wallet model for managing user funds
+model Wallet {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  balance       Decimal   @default(0) @db.Decimal(15, 2)
+  totalDeposited Decimal  @default(0) @db.Decimal(15, 2)
+  totalWithdrawn Decimal  @default(0) @db.Decimal(15, 2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+
+  @@index([userId])
+}
+
+// Transaction model for tracking wallet movements
+model Transaction {
+  id            String    @id @default(cuid())
+  userId        String
+  walletId      String
+  type          TransactionType  // DEPOSIT, WITHDRAWAL, GAME_WAGER, GAME_WINNINGS, REFUND
+  amount        Decimal   @db.Decimal(15, 2)
+  description   String?
+  status        TransactionStatus @default(PENDING) // PENDING, COMPLETED, FAILED, CANCELLED
+  matchId       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wallet        Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  match         Match?    @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([matchId])
+  @@index([createdAt])
+}
+
+// Game model for storing game templates/definitions
+model Game {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  description   String?
+  rules         String?
+  minPlayers    Int       @default(1)
+  maxPlayers    Int       @default(1)
+  minWager      Decimal   @default(0) @db.Decimal(15, 2)
+  maxWager      Decimal   @default(1000) @db.Decimal(15, 2)
+  commissionRate Decimal  @default(0) @db.Decimal(5, 2) // Commission percentage
+  isActive      Boolean   @default(true)
+  imageUrl      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  matches       Match[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+// Match model for individual game sessions
+model Match {
+  id            String    @id @default(cuid())
+  gameId        String
+  createdBy     String
+  status        MatchStatus @default(WAITING) // WAITING, IN_PROGRESS, COMPLETED, CANCELLED
+  wagerAmount   Decimal   @default(0) @db.Decimal(15, 2)
+  totalPot      Decimal   @default(0) @db.Decimal(15, 2)
+  winnerId      String?
+  winnings      Decimal   @default(0) @db.Decimal(15, 2)
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  game          Game      @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  creator       User      @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  players       MatchPlayerCurrent[]
+  transactions  Transaction[]
+
+  @@index([gameId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// MatchPlayerCurrent model for tracking current state of players in a match
+model MatchPlayerCurrent {
+  id            String    @id @default(cuid())
+  matchId       String
+  userId        String
+  joinedAt      DateTime  @default(now())
+  leftAt        DateTime?
+  status        PlayerStatus @default(JOINED) // JOINED, PLAYING, FOLDED, ELIMINATED, LEFT, WON
+  wagerAmount   Decimal   @default(0) @db.Decimal(15, 2)
+  currentScore  Decimal   @default(0) @db.Decimal(15, 2)
+  position      Int?      // Player position/rank in the match
+  isReady       Boolean   @default(false)
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  match         Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, userId]) // Prevent duplicate player entries in same match
+  @@index([matchId])
+  @@index([userId])
+  @@index([status])
+}
+
+// Enums
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  GAME_WAGER
+  GAME_WINNINGS
+  REFUND
+  BONUS
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum MatchStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PlayerStatus {
+  JOINED
+  PLAYING
+  FOLDED
+  ELIMINATED
+  LEFT
+  WON
+}
